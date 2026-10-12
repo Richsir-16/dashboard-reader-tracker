@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Reader Rollout — Executive Dashboard</title>
+<meta name="description" content="Dashboard rollout reader Parkee — sumber: Google Sheet 'Parkee Reader - Master Plan'." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!-- Library eksternal: versi dipin, semua dari CDN publik (kompatibel GitHub Pages) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<style>
+/* =========================================================
+   DESIGN TOKENS — light & dark
+   ========================================================= */
+:root{
+  color-scheme: light;
+  --bg:#f5f6f8; --surface:#ffffff; --surface-2:#f8f9fb; --surface-3:#eef0f4;
+  --border:#e3e6ec; --border-strong:#cfd4dd;
+  --ink:#111827; --ink-2:#4b5563; --ink-3:#6b7280;
+  --accent:#b7791f; --accent-ink:#ffffff; --accent-soft:#fdf3e1;
+  --focus:#2a78d6;
+  --s1:#2a78d6; --s2:#eb6834; --track:#dde1e8;
+  --good:#16794a; --good-bg:#e6f4ec; --warn:#a35c00; --warn-bg:#fdf1de;
+  --bad:#b42323; --bad-bg:#fbe9e9; --info:#1f5fae; --info-bg:#e5effb;
+  --neutral:#4b5563; --neutral-bg:#eef0f3; --violet:#5b4bb7; --violet-bg:#eeebfb;
+  --shadow:0 1px 2px rgba(16,24,40,.05), 0 1px 3px rgba(16,24,40,.06);
+  --radius:12px; --radius-sm:8px;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --bg:#0e1117; --surface:#161a22; --surface-2:#1b2029; --surface-3:#222834;
+    --border:#272e3b; --border-strong:#364052;
+    --ink:#eef1f6; --ink-2:#b4bccb; --ink-3:#8a93a6;
+    --accent:#e0a94d; --accent-ink:#1a1206; --accent-soft:#2c2414;
+    --focus:#5b9cf0;
+    --s1:#3987e5; --s2:#d95926; --track:#2c3443;
+    --good:#5fd394; --good-bg:#14301f; --warn:#f0b65a; --warn-bg:#33270f;
+    --bad:#f08b8b; --bad-bg:#3a1a1a; --info:#86b6ef; --info-bg:#172a45;
+    --neutral:#b4bccb; --neutral-bg:#252b36; --violet:#a99ff0; --violet-bg:#262245;
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#0e1117; --surface:#161a22; --surface-2:#1b2029; --surface-3:#222834;
+  --border:#272e3b; --border-strong:#364052;
+  --ink:#eef1f6; --ink-2:#b4bccb; --ink-3:#8a93a6;
+  --accent:#e0a94d; --accent-ink:#1a1206; --accent-soft:#2c2414;
+  --focus:#5b9cf0;
+  --s1:#3987e5; --s2:#d95926; --track:#2c3443;
+  --good:#5fd394; --good-bg:#14301f; --warn:#f0b65a; --warn-bg:#33270f;
+  --bad:#f08b8b; --bad-bg:#3a1a1a; --info:#86b6ef; --info-bg:#172a45;
+  --neutral:#b4bccb; --neutral-bg:#252b36; --violet:#a99ff0; --violet-bg:#262245;
+  --shadow:0 1px 2px rgba(0,0,0,.4);
+}
+
+/* =========================================================
+   BASE
+   ========================================================= */
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 'Inter',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+a{color:var(--info)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.num{font-variant-numeric:tabular-nums}
+.muted{color:var(--ink-3)}
+.wrap{max-width:1360px;margin:0 auto;padding:0 24px}
+
+/* Header */
+.app-header{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:20}
+.hdr-top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding-top:16px;padding-bottom:12px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:12px;min-width:0}
+.brand-mark{width:36px;height:36px;border-radius:9px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;flex:none}
+.brand h1{font-size:18px;line-height:1.25;margin:0;font-weight:700;letter-spacing:-.01em}
+.brand .sub{font-size:12px;color:var(--ink-3);margin-top:2px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.hdr-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:var(--neutral-bg);color:var(--neutral);white-space:nowrap}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+.pill.ok{background:var(--good-bg);color:var(--good)}
+.pill.warn{background:var(--warn-bg);color:var(--warn)}
+.pill.err{background:var(--bad-bg);color:var(--bad)}
+.pill.load .dot{animation:pulse 1s infinite ease-in-out}
+@keyframes pulse{50%{opacity:.25}}
+
+.tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;margin-bottom:-1px}
+.tabs::-webkit-scrollbar{display:none}
+.tab{appearance:none;background:none;border:0;border-bottom:2px solid transparent;padding:10px 14px;font-weight:500;color:var(--ink-2);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:8px}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.tab svg{opacity:.8}
+
+/* Buttons & inputs */
+.btn{appearance:none;display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--border-strong);background:var(--surface);color:var(--ink);border-radius:var(--radius-sm);padding:7px 12px;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;text-decoration:none;min-height:34px}
+.btn:hover{background:var(--surface-2)}
+.btn:disabled{opacity:.55;cursor:default}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:600}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.ghost:hover{background:var(--surface-3)}
+.btn.sm{padding:4px 9px;font-size:12px;min-height:28px}
+.btn .spin{animation:spin 0.9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.icon-btn{padding:6px;min-width:34px}
+.input,.select{background:var(--surface);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:7px 10px;font-size:13px;min-height:34px;max-width:100%}
+.input{min-width:0}
+.input:focus,.select:focus{outline:none;border-color:var(--focus);box-shadow:0 0 0 3px color-mix(in srgb, var(--focus) 22%, transparent)}
+.search{position:relative;flex:1 1 240px;max-width:360px;min-width:180px}
+.search svg{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--ink-3);pointer-events:none}
+.search .input{width:100%;padding-left:32px}
+.seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:var(--radius-sm);overflow:hidden;background:var(--surface)}
+.seg button{appearance:none;border:0;background:none;padding:6px 12px;font-size:12px;font-weight:500;color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--surface)}
+.check{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-2);cursor:pointer;white-space:nowrap}
+
+/* Layout */
+main.wrap{padding-top:24px;padding-bottom:48px}
+.section{margin-bottom:24px}
+.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-bottom:12px;flex-wrap:wrap}
+.section-head h2{font-size:16px;margin:0;font-weight:650;letter-spacing:-.005em}
+.section-head p{margin:2px 0 0;color:var(--ink-3);font-size:13px}
+.grid{display:grid;gap:16px}
+.g-kpi{grid-template-columns:repeat(4,minmax(0,1fr))}
+.g-2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.g-3-1{grid-template-columns:minmax(0,2fr) minmax(0,1fr)}
+@media (max-width:1100px){.g-kpi{grid-template-columns:repeat(2,minmax(0,1fr))}.g-3-1{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:860px){.g-2{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:520px){.g-kpi{grid-template-columns:minmax(0,1fr)}.wrap{padding:0 16px}}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);min-width:0}
+.card-pad{padding:18px 20px}
+.card-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:16px 20px 0;flex-wrap:wrap}
+.card-head h3{font-size:14px;margin:0;font-weight:600}
+.card-head .hint{font-size:12px;color:var(--ink-3);margin-top:2px}
+.card-body{padding:12px 20px 18px}
+
+/* KPI */
+.kpi{padding:18px 20px;display:flex;flex-direction:column;gap:6px;text-align:left;width:100%;font:inherit;color:inherit}
+button.kpi{cursor:pointer;transition:border-color .15s, box-shadow .15s}
+button.kpi:hover{border-color:var(--accent)}
+.kpi-label{font-size:12px;font-weight:600;color:var(--ink-3);text-transform:uppercase;letter-spacing:.04em;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.kpi-value{font-size:30px;line-height:1.1;font-weight:700;letter-spacing:-.02em}
+.kpi-value small{font-size:16px;font-weight:500;color:var(--ink-3);letter-spacing:0}
+.kpi-sub{font-size:12px;color:var(--ink-2)}
+.kpi-link{font-size:11px;color:var(--ink-3);font-weight:500;text-transform:none;letter-spacing:0}
+.meter{height:6px;background:var(--track);border-radius:99px;overflow:hidden;margin-top:4px}
+.meter > span{display:block;height:100%;background:var(--s1);border-radius:99px}
+
+/* Charts */
+.chart-box{position:relative;height:280px}
+.chart-box.tall{height:320px}
+
+/* Status list */
+.status-list{display:flex;flex-direction:column;gap:2px}
+.status-row{display:grid;grid-template-columns:minmax(120px,auto) 1fr auto;align-items:center;gap:12px;padding:7px 8px;border-radius:8px;cursor:pointer;border:0;background:none;text-align:left;width:100%}
+.status-row:hover{background:var(--surface-2)}
+.status-row .bar{height:8px;background:var(--track);border-radius:99px;overflow:hidden}
+.status-row .bar span{display:block;height:100%;background:var(--ink-3);border-radius:99px}
+.status-row .cnt{font-size:13px;color:var(--ink-2);min-width:76px;text-align:right}
+
+/* Badges */
+.badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap;background:var(--neutral-bg);color:var(--neutral);line-height:1.6}
+.badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;flex:none}
+.badge.plain::before{display:none}
+.b-good{background:var(--good-bg);color:var(--good)}
+.b-info{background:var(--info-bg);color:var(--info)}
+.b-warn{background:var(--warn-bg);color:var(--warn)}
+.b-bad{background:var(--bad-bg);color:var(--bad)}
+.b-violet{background:var(--violet-bg);color:var(--violet)}
+.b-neutral{background:var(--neutral-bg);color:var(--neutral)}
+.cell-err{color:var(--bad);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px}
+.empty-val{color:var(--ink-3)}
+
+/* Tables */
+.table-wrap{overflow:auto;max-height:620px;border-top:1px solid var(--border)}
+.table-wrap.short{max-height:460px}
+table.data{border-collapse:separate;border-spacing:0;width:100%;font-size:13px}
+table.data th,table.data td{padding:9px 14px;text-align:left;white-space:nowrap;border-bottom:1px solid var(--border);vertical-align:middle}
+table.data thead th{position:sticky;top:0;z-index:1;background:var(--surface-2);color:var(--ink-2);font-size:12px;font-weight:600;letter-spacing:.01em}
+table.data thead th.sortable{cursor:pointer;user-select:none}
+table.data thead th.sortable:hover{color:var(--ink)}
+table.data thead th .arr{opacity:.35;margin-left:4px;font-size:10px}
+table.data thead th[aria-sort="ascending"] .arr,table.data thead th[aria-sort="descending"] .arr{opacity:1;color:var(--accent)}
+table.data tbody tr:hover td{background:var(--surface-2)}
+table.data td.r,table.data th.r{text-align:right}
+table.data td.wrap-text{white-space:normal;min-width:240px;max-width:420px;color:var(--ink-2)}
+table.data td .sub{display:block;font-size:11px;color:var(--ink-3)}
+table.data td.loc{max-width:340px;overflow:hidden;text-overflow:ellipsis}
+.row-link{color:var(--ink-3);display:inline-flex;padding:4px;border-radius:6px}
+.row-link:hover{color:var(--ink);background:var(--surface-3)}
+
+.toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:14px 20px}
+.toolbar .spacer{flex:1}
+.count{font-size:12px;color:var(--ink-3);white-space:nowrap}
+.pager{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 20px;border-top:1px solid var(--border);flex-wrap:wrap}
+.pager .pg-btns{display:flex;gap:6px;align-items:center}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip-btn{appearance:none;border:1px solid var(--border-strong);background:var(--surface);border-radius:999px;padding:3px 10px;font-size:12px;cursor:pointer;color:var(--ink-2);display:inline-flex;align-items:center;gap:6px}
+.chip-btn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);color:var(--ink)}
+.chip-btn b{font-weight:600;color:var(--ink)}
+.active-filters{display:flex;gap:6px;flex-wrap:wrap;align-items:center;padding:0 20px 12px}
+.af{display:inline-flex;align-items:center;gap:6px;padding:3px 6px 3px 10px;background:var(--accent-soft);border:1px solid var(--accent);border-radius:999px;font-size:12px}
+.af button{border:0;background:none;cursor:pointer;color:var(--ink-2);padding:0 4px;font-size:14px;line-height:1}
+
+/* States */
+.state{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:8px;padding:40px 20px;color:var(--ink-2)}
+.state h4{margin:0;font-size:14px;color:var(--ink)}
+.state p{margin:0;font-size:13px;max-width:520px}
+.state .ico{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:var(--surface-3);color:var(--ink-3)}
+.state.err .ico{background:var(--bad-bg);color:var(--bad)}
+.banner{display:flex;gap:12px;align-items:flex-start;padding:12px 16px;border-radius:var(--radius);border:1px solid;margin-bottom:16px;font-size:13px}
+.banner.err{background:var(--bad-bg);border-color:color-mix(in srgb,var(--bad) 35%,transparent);color:var(--ink)}
+.banner.warn{background:var(--warn-bg);border-color:color-mix(in srgb,var(--warn) 35%,transparent);color:var(--ink)}
+.banner.info{background:var(--info-bg);border-color:color-mix(in srgb,var(--info) 30%,transparent);color:var(--ink)}
+.banner > div > b:first-child{display:block;margin-bottom:2px}
+.banner ul{margin:4px 0 0;padding-left:18px}
+.banner .b-ico{flex:none;margin-top:1px}
+.skel{background:linear-gradient(90deg,var(--surface-3) 25%,var(--surface-2) 37%,var(--surface-3) 63%);background-size:400% 100%;animation:sk 1.3s ease infinite;border-radius:6px}
+@keyframes sk{0%{background-position:100% 50%}100%{background-position:0 50%}}
+.note{font-size:12px;color:var(--ink-3);margin:10px 0 0}
+.note code,.diag code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11.5px;background:var(--surface-3);padding:1px 5px;border-radius:4px}
+.kv{display:grid;grid-template-columns:max-content 1fr;gap:6px 16px;font-size:13px}
+.kv dt{color:var(--ink-3)} .kv dd{margin:0;word-break:break-word}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2);margin-bottom:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+footer{color:var(--ink-3);font-size:12px;padding:24px 0 40px;border-top:1px solid var(--border)}
+@media (max-width:640px){
+  .app-header{position:static}
+  .hdr-top{padding-top:12px}
+  .brand h1{font-size:16px}
+  .kpi-value{font-size:26px}
+  .card-head,.card-body,.toolbar{padding-left:14px;padding-right:14px}
+  .pager{padding-left:14px;padding-right:14px}
+  .search{max-width:none;flex-basis:100%}
+  .chart-box{height:240px}
+  .status-row{grid-template-columns:minmax(100px,auto) 1fr auto}
+}
+@media print{.app-header{position:static}.hdr-actions,.toolbar,.pager{display:none}}
+</style>
+</head>
+<body>
+<noscript><div style="padding:24px">Dashboard ini membutuhkan JavaScript.</div></noscript>
+
+<header class="app-header">
+  <div class="wrap">
+    <div class="hdr-top">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 15v-3M12 15V9M17 15v-5"/></svg>
+        </div>
+        <div style="min-width:0">
+          <h1>Reader Rollout — Executive Dashboard</h1>
+          <div class="sub">
+            <span>Sumber: <a id="srcLink" href="#" target="_blank" rel="noopener">Parkee Reader - Master Plan</a></span>
+            <span aria-hidden="true">·</span>
+            <span id="updatedAt">Memuat data…</span>
+          </div>
+        </div>
+      </div>
+      <div class="hdr-actions">
+        <span id="statusPill" class="pill load" role="status"><span class="dot"></span><span>Memuat</span></span>
+        <button id="themeBtn" class="btn ghost icon-btn" type="button" aria-label="Ganti tema terang/gelap" title="Ganti tema">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9z"/></svg>
+        </button>
+        <button id="refreshBtn" class="btn" type="button">
+          <svg id="refreshIco" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+          <span>Refresh</span>
+        </button>
+      </div>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Navigasi dashboard" id="tabs"></nav>
+  </div>
+</header>
+
+<main class="wrap" id="main" tabindex="-1"></main>
+
+<footer class="wrap" id="footer"></footer>
+
+<script>
+'use strict';
+/* =====================================================================
+   1. KONFIGURASI — ubah bagian ini bila struktur sheet berubah
+   ===================================================================== */
+const CONFIG = {
+  SHEET_ID: "1auY3F72iBnw2geLmNRoxNxHmf2LCghbR9woIL32Sbfk",
+  SOURCES: {
+    summary:   { gid: "0",          sheet: "Summary",                          label: "Summary" },
+    readerIn:  { gid: "1780063698", sheet: "Plan implementation (reader In)",  label: "Reader In" },
+    readerOut: { gid: "1146960674", sheet: "Plan implementation (reader Out)", label: "Reader Out" },
+    stock:     { gid: "1795516903", sheet: "Reader Stock",                     label: "Reader Stock" }
+  },
+  AUTO_REFRESH_MS: 5 * 60 * 1000,
+  FETCH_TIMEOUT_MS: 25000,
+  LIVE_STATUSES: ["live"],
+  // "Perlu Perhatian" = Pending + Rescheduled (logika asli). "reschedule" ditambahkan karena
+  // sheet memakai ejaan "Reschedule", bukan "Rescheduled".
+  ATTENTION_STATUSES: ["pending", "rescheduled", "reschedule"],
+  // Kolom status yang dipakai KPI. "dki" = kolom "Status DKI" (dipakai kode lama).
+  // "lokasi" = kolom ke-2 berjudul "Live Date" (kolom F) yang berisi Live/Scheduled/Reschedule/Pull Out/dst.
+  DEFAULT_STATUS_BASIS: "dki",
+  STOCK_BUFFER_MIN: 20,          // alert bila stok di bawah angka ini
+  NEED_SOURCES: ["readerIn"],    // sheet plan yang dihitung sebagai "kebutuhan pending" (logika asli: hanya Reader In)
+  // Padanan nama tipe reader antar-sheet (setelah dinormalisasi: huruf besar, tanpa spasi/tanda baca, tanpa kata "READER").
+  // Kiri = nama di sheet plan, kanan = nama di sheet Reader Stock. Sesuaikan bila perlu.
+  READER_ALIASES: { "BAREBONET10": "T10", "SR200EXP": "SR200EXPANDED" },
+  PAGE_SIZE: 50
+};
+
+/* Skema kolom per sheet. `match` dicocokkan ke judul kolom (tidak peka huruf besar/kecil):
+   pertama dicari yang sama persis, lalu yang diawali, lalu yang mengandung teks tsb.
+   `occurrence` = ambil kolom ke-N bila ada beberapa kolom dengan judul sama. */
+const SCHEMA = {
+  summary: { requireAny: ["rcCode", "name"], fields: {
+    rcCode:       { label: "RC Code",        match: ["rc code", "kode lokasi", "kode"] },
+    name:         { label: "Nama Lokasi",    match: ["nama lokasi", "lokasi"] },
+    category:     { label: "Kategori",       match: ["building category", "kategori", "category"] },
+    liveDate:     { label: "Live Date",      match: ["live date"], occurrence: 1, exact: true, type: "date" },
+    statusLokasi: { label: "Status Lokasi",  match: ["live date"], occurrence: 2, exact: true },
+    city:         { label: "Kota",           match: ["city", "kota"] },
+    area:         { label: "Area",           match: ["area"], exact: true },
+    operator:     { label: "Operator",       match: ["operator"] },
+    batch:        { label: "Batch",          match: ["batch"] },
+    readerIn:     { label: "Reader IN",      match: ["reader in", "reader baru"] },
+    readerOut:    { label: "Reader Out",     match: ["reader out", "reader lama"] },
+    tier:         { label: "Tier",           match: ["tier"], exact: true },
+    liveDateDki:  { label: "Live Date DKI",  match: ["live date dki"], type: "date" },
+    statusDki:    { label: "Status DKI",     match: ["status dki"] },
+    migrasiStatus:{ label: "Status Migrasi", match: ["status migrasi"] }
+  }},
+  readerIn: { requireAny: ["rcCode", "name"], fields: {
+    rcCode:     { label: "RC Code",      match: ["rc code", "kode"] },
+    name:       { label: "Nama Lokasi",  match: ["nama lokasi", "lokasi"] },
+    gateIn:     { label: "Gate In",      match: ["gate in"], type: "num" },
+    gateOut:    { label: "Gate Out",     match: ["gate out"], type: "num" },
+    qtyCasTrx:  { label: "Qty Cas Trx",  match: ["qty cas trx"], type: "num" },
+    qtyMembTrx: { label: "Qty Memb Trx", match: ["qty memb trx"], type: "num" },
+    readerType: { label: "Reader Type",  match: ["reader type", "reader", "tipe", "type"] },
+    tier:       { label: "Tier",         match: ["tier"], exact: true },
+    category:   { label: "Category",     match: ["category", "kategori"] },
+    status:     { label: "Status",       match: ["status"] },
+    targetDate: { label: "Imp Date",     match: ["imp date", "target", "tanggal live", "live date"], type: "date" },
+    batch:      { label: "Batch",        match: ["batch"], optional: true }
+  }},
+  readerOut: { requireAny: ["rcCode", "name"], fields: {
+    rcCode:     { label: "RC Code",      match: ["rc code", "kode"] },
+    name:       { label: "Nama Lokasi",  match: ["nama lokasi", "lokasi"] },
+    gateIn:     { label: "Gate In",      match: ["gate in"], type: "num" },
+    gateOut:    { label: "Gate Out",     match: ["gate out"], type: "num" },
+    qtyCasTrx:  { label: "Qty Cas Trx",  match: ["qty cas trx"], type: "num" },
+    qtyMembTrx: { label: "Qty Memb Trx", match: ["qty memb trx"], type: "num" },
+    revenue:    { label: "Revenue",      match: ["revenue"], type: "num" },
+    readerType: { label: "Reader",       match: ["reader type", "reader", "tipe", "type"] },
+    tier:       { label: "Tier",         match: ["tier"], exact: true },
+    status:     { label: "Status",       match: ["status"] },
+    targetDate: { label: "Imp Date",     match: ["imp date", "target", "tanggal live", "live date"], type: "date" },
+    am:         { label: "AM",           match: ["am"], exact: true, optional: true },
+    batch:      { label: "Batch",        match: ["batch"], optional: true }
+  }},
+  stock: { requireAny: ["readerType"], fields: {
+    readerType: { label: "Nama Reader",  match: ["nama reader", "reader", "tipe", "type"] },
+    qty:        { label: "Stock (Qty)",  match: ["stock (qty)", "ready stock", "stock", "qty"], type: "num" },
+    ket:        { label: "Ket",          match: ["ket", "keterangan"], exact: true },
+    otw:        { label: "Stock OTW",    match: ["stock otw", "in transit", "otw"], type: "num" },
+    remarks:    { label: "Remarks",      match: ["remarks", "catatan"] }
+  }}
+};
+
+/* =====================================================================
+   2. UTILITAS
+   ===================================================================== */
+const $ = (s, el = document) => el.querySelector(s);
+const norm = s => (s == null ? "" : String(s)).replace(/\s+/g, " ").trim().toLowerCase();
+const esc = s => (s == null ? "" : String(s)).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+const ERR_RE = /^#(N\/A|REF!|VALUE!|DIV\/0!|NAME\?|NUM!|NULL!|ERROR!)/i;
+const isErr = v => ERR_RE.test(String(v || "").trim());
+const fmtInt = n => (n == null || isNaN(n)) ? "—" : Number(n).toLocaleString("id-ID");
+const fmtPct = (a, b) => b ? (a / b * 100).toLocaleString("id-ID", { maximumFractionDigits: 1 }) + "%" : "—";
+const editUrl = (gid, row) => `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/edit#gid=${gid}${row ? "&range=A" + row : ""}`;
+const exportUrl = gid => `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/export?format=csv&gid=${gid}`;
+const gvizUrl = gid => `https://docs.google.com/spreadsheets/d/${CONFIG.SHEET_ID}/gviz/tq?tqx=out:csv&headers=1&gid=${gid}`;
+const store = {
+  get(k, d) { try { const v = localStorage.getItem("rrd:" + k); return v == null ? d : v; } catch (e) { return d; } },
+  set(k, v) { try { localStorage.setItem("rrd:" + k, v); } catch (e) { /* storage tidak tersedia */ } }
+};
+
+function parseNum(v) {
+  let s = String(v == null ? "" : v).trim();
+  if (!s || s === "-" || isErr(s)) return null;
+  s = s.replace(/^rp\.?\s*/i, "").replace(/\s/g, "");
+  if (/^-?\d{1,3}([.,]\d{3})+$/.test(s)) s = s.replace(/[.,]/g, "");      // 1.234.567 / 1,234,567
+  else if (/^-?\d{1,3}(,\d{3})+\.\d+$/.test(s)) s = s.replace(/,/g, "");  // 1,234.56
+  else if (/^-?\d{1,3}(\.\d{3})+,\d+$/.test(s)) s = s.replace(/\./g, "").replace(",", "."); // 1.234,56
+  else s = s.replace(",", ".");
+  const n = Number(s);
+  return isFinite(n) ? n : null;
+}
+const MONTHS = { jan:0, january:0, januari:0, feb:1, february:1, februari:1, mar:2, march:2, maret:2, apr:3, april:3, may:4, mei:4, jun:5, june:5, juni:5, jul:6, july:6, juli:6, aug:7, august:7, agu:7, agt:7, agustus:7, sep:8, sept:8, september:8, oct:9, october:9, okt:9, oktober:9, nov:10, november:10, dec:11, december:11, des:11, desember:11 };
+function parseDate(v) {
+  const s = String(v || "").trim();
+  let m = s.match(/^(\d{1,2})[\s-]+([A-Za-z]+)[\s-]+(\d{4})$/);
+  if (m && MONTHS[m[2].toLowerCase()] != null) return new Date(+m[3], MONTHS[m[2].toLowerCase()], +m[1]).getTime();
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return new Date(+m[1], +m[2] - 1, +m[3]).getTime();
+  m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);   // dd/mm/yyyy
+  if (m) return new Date(+m[3], +m[2] - 1, +m[1]).getTime();
+  return null;
+}
+// Kunci tipe reader untuk pencocokan antar-sheet
+function readerKey(t) {
+  let k = String(t || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (k.startsWith("READER") && k.length > 6) k = k.slice(6);
+  return CONFIG.READER_ALIASES[k] || k;
+}
+// Kunci lokasi: RC Code bila valid, kalau tidak pakai nama
+const validCode = c => { const s = String(c || "").trim(); return s && s !== "-" && !isErr(s); };
+const locKeys = r => [validCode(r.rcCode) ? "c:" + norm(r.rcCode) : null, r.name ? "n:" + norm(r.name) : null].filter(Boolean);
+
+/* =====================================================================
+   3. PENGAMBILAN & PARSING DATA
+   ===================================================================== */
+async function fetchText(url) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), CONFIG.FETCH_TIMEOUT_MS);
+  try {
+    const res = await fetch(url, { cache: "no-store", signal: ctl.signal, redirect: "follow" });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const text = await res.text();
+    // Sheet privat biasanya mengembalikan halaman login HTML, bukan CSV
+    if (/^\s*<(!doctype|html)/i.test(text)) throw new Error("Respons berupa halaman HTML (kemungkinan sheet tidak dibagikan publik / perlu login)");
+    return text;
+  } catch (e) {
+    if (e.name === "AbortError") throw new Error("Timeout setelah " + CONFIG.FETCH_TIMEOUT_MS / 1000 + " detik");
+    if (e instanceof TypeError) throw new Error("Permintaan diblokir/ gagal jaringan (" + e.message + ")");
+    throw e;
+  } finally { clearTimeout(t); }
+}
+
+// Metode yang berhasil diingat selama sesi, supaya refresh berikutnya tidak mencoba ulang yang gagal
+let preferredMethod = null;
+async function fetchSource(key) {
+  const { gid } = CONFIG.SOURCES[key];
+  const methods = preferredMethod === "gviz" ? ["gviz", "export"] : ["export", "gviz"];
+  const attempts = [];
+  for (const m of methods) {
+    const url = m === "export" ? exportUrl(gid) : gvizUrl(gid);
+    try {
+      const text = await fetchText(url);
+      preferredMethod = m;
+      return { method: m, url, text, attempts };
+    } catch (e) { attempts.push({ method: m, error: e.message }); }
+  }
+  const err = new Error(attempts.map(a => a.method + ": " + a.error).join(" | "));
+  err.attempts = attempts;
+  throw err;
+}
+
+function resolveColumns(headerRow, schema) {
+  const H = headerRow.map(norm);
+  const map = {};
+  for (const [field, spec] of Object.entries(schema.fields)) {
+    let idx = -1;
+    for (const frag of spec.match) {
+      const tests = spec.exact ? [h => h === frag] : [h => h === frag, h => h.startsWith(frag), h => h.includes(frag)];
+      for (const t of tests) {
+        const hits = H.map((h, i) => (h && t(h)) ? i : -1).filter(i => i >= 0);
+        const pick = hits[(spec.occurrence || 1) - 1];
+        if (pick != null) { idx = pick; break; }
+      }
+      if (idx >= 0) break;
+    }
+    map[field] = idx;
+  }
+  return map;
+}
+function detectHeaderRow(rows, schema) {
+  let best = { idx: -1, score: 0 };
+  for (let i = 0; i < Math.min(rows.length, 12); i++) {
+    const H = rows[i].map(norm);
+    let score = 0;
+    for (const spec of Object.values(schema.fields)) if (spec.match.some(f => H.includes(f))) score++;
+    if (score > best.score) best = { idx: i, score };
+  }
+  return best.score >= 2 ? best.idx : -1;
+}
+
+function parseSource(key, text) {
+  const schema = SCHEMA[key];
+  const rows = Papa.parse(text, { header: false, skipEmptyLines: false }).data;
+  const hIdx = detectHeaderRow(rows, schema);
+  if (hIdx < 0) throw new Error("Baris judul kolom tidak ditemukan di 12 baris pertama sheet " + CONFIG.SOURCES[key].sheet);
+  const header = rows[hIdx].map(h => String(h || "").trim());
+  const colMap = resolveColumns(header, schema);
+  const out = [], notes = [];
+  let blank = 0, noKey = 0, errCells = 0;
+  for (let i = hIdx + 1; i < rows.length; i++) {
+    const raw = rows[i];
+    if (!raw.some(v => String(v || "").trim())) { blank++; continue; }
+    const r = { _row: i + 1, _raw: raw };
+    for (const [field, idx] of Object.entries(colMap)) {
+      const v = idx >= 0 ? String(raw[idx] == null ? "" : raw[idx]).trim() : "";
+      r[field] = v;
+      if (isErr(v)) errCells++;
+    }
+    if (key === "stock" && norm(r.readerType) === "source") { notes.push(r); continue; }
+    if (!schema.requireAny.some(f => r[f])) { noKey++; continue; }
+    out.push(r);
+  }
+  const missing = Object.entries(colMap).filter(([f, i]) => i < 0).map(([f]) => f);
+  return { rows: out, header, headerRow: hIdx + 1, colMap, notes, stats: { totalLines: rows.length, dataLines: rows.length - hIdx - 1, blank, noKey, kept: out.length, errCells }, missing };
+}
+
+/* =====================================================================
+   4. STATE & TURUNAN DATA (business logic)
+   ===================================================================== */
+const state = {
+  tab: store.get("tab", "overview"),
+  basis: store.get("basis", CONFIG.DEFAULT_STATUS_BASIS),
+  loading: false, firstLoad: true, updatedAt: null,
+  src: {},          // key -> {ok, rows, error, meta}
+  ex: { source: "summary", q: "", sort: null, page: 1, rawCols: false, filter: {} },
+  tr: { readerIn: { q: "", status: "", page: 1 }, readerOut: { q: "", status: "", page: 1 } },
+  stockQ: ""
+};
+const ok = k => state.src[k] && state.src[k].ok;
+const rowsOf = k => ok(k) ? state.src[k].rows : [];
+const statusOf = r => state.basis === "lokasi" ? r.statusLokasi : r.statusDki;
+const statusLabel = () => state.basis === "lokasi" ? "Status Lokasi" : "Status DKI";
+const isLive = s => CONFIG.LIVE_STATUSES.includes(norm(s));
+const isAttention = s => CONFIG.ATTENTION_STATUSES.includes(norm(s));
+
+// Gabungan: tipe reader efektif per lokasi (logika asli dipertahankan):
+// baris Live di Reader In diutamakan, lalu Reader Out, kalau tidak ada pakai nilai di Summary.
+function mergeEffectiveReader() {
+  const idx = rows => { const m = {}; rows.forEach(r => { if (isLive(r.status)) locKeys(r).forEach(k => { if (!m[k]) m[k] = r; }); }); return m; };
+  const inBy = idx(rowsOf("readerIn")), outBy = idx(rowsOf("readerOut"));
+  rowsOf("summary").forEach(r => {
+    const keys = locKeys(r);
+    let upd = null, from = "";
+    for (const k of keys) if (inBy[k]) { upd = inBy[k]; from = "Reader In"; break; }
+    if (!upd) for (const k of keys) if (outBy[k]) { upd = outBy[k]; from = "Reader Out"; break; }
+    r.effectiveReader = (upd && upd.readerType) ? upd.readerType : (r.readerIn || r.readerOut || "");
+    r.readerUpdated = !!upd;
+    r.readerUpdatedFrom = from;
+  });
+}
+
+function needByKey() {
+  const need = {}, names = {};
+  CONFIG.NEED_SOURCES.forEach(src => rowsOf(src).forEach(r => {
+    if (isLive(r.status)) return;
+    const k = r.readerType ? readerKey(r.readerType) : "__blank";
+    need[k] = (need[k] || 0) + 1;
+    (names[k] = names[k] || new Set()).add(r.readerType || "(Tipe belum diisi)");
+  }));
+  return { need, names };
+}
+
+/* =====================================================================
+   5. KOMPONEN UI
+   ===================================================================== */
+const ICON = {
+  overview: '<path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/>',
+  tracker: '<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/>',
+  stock: '<path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/>',
+  explore: '<path d="M3 5h18M3 12h18M3 19h18"/>',
+  diag: '<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',
+  search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+  ext: '<path d="M14 4h6v6"/><path d="M10 14L20 4"/><path d="M19 13v6a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6"/>',
+  alert: '<circle cx="12" cy="12" r="9"/><path d="M12 8v4M12 16h.01"/>',
+  inbox: '<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>'
+};
+const svg = (name, size = 16) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]}</svg>`;
+
+const TABS = [
+  ["overview", "Ringkasan Eksekutif"], ["tracker", "Tracker Implementasi"],
+  ["stock", "Stok & Pengadaan"], ["explore", "Data Explorer"], ["diag", "Kualitas Data"]
+];
+
+function badgeTone(v) {
+  const k = norm(v);
+  if (!k) return "b-neutral";
+  if (k === "live" || k === "complete" || k === "migrasi" || k === "injected") return "b-good";
+  if (k === "scheduled" || k === "new setup") return "b-info";
+  if (["reschedule", "rescheduled", "pending", "to be discussed", "tbc", "jeda", "incomplete", "belum terdata"].includes(k)) return "b-warn";
+  if (["canceled", "cancelled", "pull out", "pullout", "rollback", "inactive"].includes(k)) return "b-bad";
+  if (["windows", "internet", "member only", "mobcash only"].includes(k)) return "b-violet";
+  return "b-neutral";
+}
+const badge = v => v ? (isErr(v) ? `<span class="cell-err" title="Error formula di sheet">${esc(v)}</span>` : `<span class="badge ${badgeTone(v)}">${esc(v)}</span>`) : `<span class="empty-val">—</span>`;
+const cell = v => !v ? `<span class="empty-val">—</span>` : isErr(v) ? `<span class="cell-err" title="Error formula di sheet">${esc(v)}</span>` : esc(v);
+
+function stateBox(kind, title, msg, action = "") {
+  const ico = kind === "err" ? svg("alert", 20) : svg("inbox", 20);
+  return `<div class="state ${kind}"><div class="ico">${ico}</div><h4>${esc(title)}</h4><p>${msg}</p>${action}</div>`;
+}
+function srcError(key) {
+  const s = state.src[key];
+  if (!s) return stateBox("", "Memuat…", "Data belum tersedia.");
+  return stateBox("err", `Gagal memuat sheet "${CONFIG.SOURCES[key].sheet}"`,
+    esc(s.error || "Error tidak diketahui") + `<br>Pastikan sheet dibagikan sebagai <b>Anyone with the link – Viewer</b>, lalu klik Coba lagi.`,
+    `<button class="btn sm" data-act="refresh">Coba lagi</button>`);
+}
+function kpi({ label, value, sub, act, meter, link }) {
+  const tag = act ? "button" : "div";
+  return `<${tag} class="card kpi" ${act ? `type="button" data-act="${esc(act)}"` : ""}>
+    <div class="kpi-label"><span>${label}</span>${link ? `<span class="kpi-link">${link} →</span>` : ""}</div>
+    <div class="kpi-value num">${value}</div>
+    ${meter != null ? `<div class="meter" aria-hidden="true"><span style="width:${Math.max(0, Math.min(100, meter))}%"></span></div>` : ""}
+    ${sub ? `<div class="kpi-sub">${sub}</div>` : ""}
+  </${tag}>`;
+}
+function pager(id, page, total, size) {
+  const pages = Math.max(1, Math.ceil(total / size));
+  const from = total ? (page - 1) * size + 1 : 0, to = Math.min(total, page * size);
+  return `<div class="pager"><span class="count num">${fmtInt(from)}–${fmtInt(to)} dari ${fmtInt(total)} baris</span>
+    <div class="pg-btns"><button class="btn sm" data-pg="${id}" data-to="${page - 1}" ${page <= 1 ? "disabled" : ""} aria-label="Halaman sebelumnya">‹ Sebelumnya</button>
+    <span class="count num">Hal ${page}/${pages}</span>
+    <button class="btn sm" data-pg="${id}" data-to="${page + 1}" ${page >= pages ? "disabled" : ""} aria-label="Halaman berikutnya">Berikutnya ›</button></div></div>`;
+}
+
+/* ---------- Chart.js helpers ---------- */
+const charts = {};
+function cssVar(n) { return getComputedStyle(document.documentElement).getPropertyValue(n).trim(); }
+function destroyCharts() { Object.keys(charts).forEach(k => { charts[k].destroy(); delete charts[k]; }); }
+function baseOpts() {
+  const ink = cssVar("--ink-2"), grid = cssVar("--border");
+  return {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    plugins: { legend: { display: false }, tooltip: { backgroundColor: cssVar("--surface"), titleColor: cssVar("--ink"), bodyColor: cssVar("--ink-2"), borderColor: cssVar("--border-strong"), borderWidth: 1, padding: 10, boxPadding: 4, titleFont: { family: "Inter", weight: "600" }, bodyFont: { family: "Inter" } } },
+    scales: {
+      x: { ticks: { color: ink, font: { family: "Inter", size: 11 } }, grid: { color: grid, drawTicks: false }, border: { display: false } },
+      y: { ticks: { color: ink, font: { family: "Inter", size: 11 } }, grid: { color: grid, drawTicks: false }, border: { display: false } }
+    }
+  };
+}
+function mountChart(id, cfg) {
+  const el = document.getElementById(id);
+  if (!el || typeof Chart === "undefined") return;
+  if (charts[id]) charts[id].destroy();
+  charts[id] = new Chart(el.getContext("2d"), cfg);
+}
+
+/* =====================================================================
+   6. HALAMAN: RINGKASAN EKSEKUTIF
+   ===================================================================== */
+function viewOverview() {
+  if (!ok("summary")) return srcError("summary");
+  const S = rowsOf("summary");
+  const total = S.length;
+  const live = S.filter(r => isLive(statusOf(r))).length;
+  const pct = total ? live / total * 100 : 0;
+  const deployed = S.filter(r => r.effectiveReader).length;
+  const attention = S.filter(r => isAttention(statusOf(r))).length;
+  const stockQty = ok("stock") ? rowsOf("stock").reduce((a, r) => a + (parseNum(r.qty) || 0), 0) : null;
+  const noStatus = S.filter(r => !statusOf(r)).length;
+
+  const statusCounts = {};
+  S.forEach(r => { const s = statusOf(r) || ""; statusCounts[s] = (statusCounts[s] || 0) + 1; });
+  const statusEntries = Object.entries(statusCounts).sort((a, b) => b[1] - a[1]);
+  const maxStatus = Math.max(1, ...statusEntries.map(e => e[1]));
+
+  const attnNames = Object.keys(statusCounts).filter(isAttention);
+  const attnSub = attnNames.length ? attnNames.map(n => `${esc(n)} ${fmtInt(statusCounts[n])}`).join(" · ") : "Tidak ada Pending / Reschedule";
+
+  return `
+  <div class="section-head" style="margin-bottom:16px">
+    <div><h2>Ringkasan Eksekutif</h2><p>${fmtInt(total)} lokasi terdaftar di sheet Summary${noStatus ? ` · ${fmtInt(noStatus)} lokasi belum memiliki ${statusLabel()}` : ""}</p></div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="count">Basis status KPI</span>
+      <div class="seg" role="group" aria-label="Basis status">
+        <button type="button" data-basis="dki" aria-pressed="${state.basis === "dki"}" title="Kolom 'Status DKI'">Status DKI</button>
+        <button type="button" data-basis="lokasi" aria-pressed="${state.basis === "lokasi"}" title="Kolom ke-2 berjudul 'Live Date' (kolom F)">Status Lokasi</button>
+      </div>
+    </div>
+  </div>
+  <div class="section grid g-kpi">
+    ${kpi({ label: "Lokasi Live", value: `${fmtInt(live)} <small>/ ${fmtInt(total)}</small>`, sub: `${fmtPct(live, total)} dari total lokasi`, act: "kpi-live", link: "Lihat" })}
+    ${kpi({ label: "Progress Rollout", value: pct.toLocaleString("id-ID", { maximumFractionDigits: 1 }) + "%", meter: pct, sub: `Live vs total lokasi · basis ${statusLabel()}` })}
+    ${kpi({ label: "Reader Deployed", value: fmtInt(deployed), sub: stockQty == null ? "Data stok tidak tersedia" : `${fmtInt(stockQty)} unit stok tercatat (Stock Qty)`, act: "kpi-all", link: "Lihat" })}
+    ${kpi({ label: "Perlu Perhatian", value: fmtInt(attention), sub: attnSub, act: "kpi-attn", link: "Lihat" })}
+  </div>
+
+  <div class="section grid g-3-1">
+    <div class="card">
+      <div class="card-head"><div><h3>Rollout per Batch</h3><div class="hint">Klik batang untuk melihat lokasinya</div></div>
+        <div class="legend" aria-hidden="true"><span><i style="background:var(--s1)"></i>Live</span><span><i style="background:var(--track)"></i>Sisa target</span></div></div>
+      <div class="card-body"><div class="chart-box"><canvas id="chBatch" role="img" aria-label="Grafik rollout per batch"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h3>${statusLabel()}</h3><div class="hint">Klik untuk memfilter data</div></div></div>
+      <div class="card-body"><div class="status-list">
+        ${statusEntries.map(([s, c]) => `<button type="button" class="status-row" data-status="${esc(s || "__empty")}">
+          ${s ? badge(s) : `<span class="badge b-neutral plain">(Kosong)</span>`}
+          <span class="bar" aria-hidden="true"><span style="width:${c / maxStatus * 100}%"></span></span>
+          <span class="cnt num">${fmtInt(c)} · ${fmtPct(c, total)}</span></button>`).join("")}
+      </div></div>
+    </div>
+  </div>
+
+  <div class="section grid g-2">
+    <div class="card">
+      <div class="card-head"><div><h3>Distribusi Tipe Reader</h3><div class="hint">Tipe reader efektif per lokasi · klik untuk filter</div></div></div>
+      <div class="card-body"><div class="chart-box"><canvas id="chReader" role="img" aria-label="Distribusi tipe reader"></canvas></div></div>
+    </div>
+    <div class="card">
+      <div class="card-head"><div><h3>Stok vs Kebutuhan Implementasi</h3><div class="hint">Stock (Qty) vs lokasi belum Live di plan ${CONFIG.NEED_SOURCES.map(k => CONFIG.SOURCES[k].label).join(" + ")}</div></div>
+        <div class="legend" aria-hidden="true"><span><i style="background:var(--s1)"></i>Stock (Qty)</span><span><i style="background:var(--s2)"></i>Kebutuhan pending</span></div></div>
+      <div class="card-body">${ok("stock") ? `<div class="chart-box"><canvas id="chStock" role="img" aria-label="Stok vs kebutuhan"></canvas></div>` : srcError("stock")}</div>
+    </div>
+  </div>`;
+}
+
+function mountOverviewCharts() {
+  const S = rowsOf("summary");
+  const s1 = cssVar("--s1"), s2 = cssVar("--s2"), track = cssVar("--track"), surf = cssVar("--surface");
+
+  // Batch
+  const batch = {};
+  S.forEach(r => { const b = r.batch || "(Tanpa batch)"; (batch[b] = batch[b] || { live: 0, total: 0 }).total++; if (isLive(statusOf(r))) batch[b].live++; });
+  const bl = Object.keys(batch).sort((a, b) => (a.startsWith("(") - b.startsWith("(")) || a.localeCompare(b, "id", { numeric: true }));
+  const o1 = baseOpts();
+  o1.scales.x.stacked = true; o1.scales.y.stacked = true; o1.scales.x.grid.display = false;
+  o1.plugins.tooltip.callbacks = { footer: items => { const b = batch[bl[items[0].dataIndex]]; return `Progress: ${fmtPct(b.live, b.total)} (${b.live}/${b.total})`; } };
+  o1.onClick = (e, els) => { if (els.length) goExplore({ batch: bl[els[0].index] === "(Tanpa batch)" ? "__empty" : bl[els[0].index] }); };
+  o1.onHover = (e, els) => { e.native.target.style.cursor = els.length ? "pointer" : "default"; };
+  mountChart("chBatch", { type: "bar", data: { labels: bl, datasets: [
+    { label: "Live", data: bl.map(b => batch[b].live), backgroundColor: s1, borderRadius: 4, borderSkipped: false, borderColor: surf, borderWidth: { top: 2 }, maxBarThickness: 56 },
+    { label: "Sisa target", data: bl.map(b => batch[b].total - batch[b].live), backgroundColor: track, borderRadius: 4, borderSkipped: false, maxBarThickness: 56 }
+  ] }, options: o1 });
+
+  // Reader type (horizontal bar — lebih mudah dibaca dari doughnut)
+  const rt = {};
+  S.forEach(r => { const t = r.effectiveReader || "(Belum ada data reader)"; rt[t] = (rt[t] || 0) + 1; });
+  const rl = Object.keys(rt).sort((a, b) => rt[b] - rt[a]);
+  const o2 = baseOpts();
+  o2.indexAxis = "y"; o2.scales.y.grid.display = false;
+  o2.plugins.tooltip.callbacks = { label: c => ` ${fmtInt(c.raw)} lokasi (${fmtPct(c.raw, S.length)})` };
+  o2.onClick = (e, els) => { if (els.length) goExplore({ reader: rl[els[0].index].startsWith("(") ? "__empty" : rl[els[0].index] }); };
+  o2.onHover = (e, els) => { e.native.target.style.cursor = els.length ? "pointer" : "default"; };
+  mountChart("chReader", { type: "bar", data: { labels: rl, datasets: [{ label: "Lokasi", data: rl.map(t => rt[t]), backgroundColor: s1, borderRadius: 4, maxBarThickness: 22 }] }, options: o2 });
+
+  // Stock vs need
+  if (ok("stock")) {
+    const { need, names } = needByKey();
+    const stockBy = {}, label = {};
+    rowsOf("stock").forEach(r => { const k = readerKey(r.readerType); stockBy[k] = (stockBy[k] || 0) + (parseNum(r.qty) || 0); label[k] = r.readerType; });
+    Object.keys(need).forEach(k => { if (!label[k]) label[k] = k === "__blank" ? "(Tipe belum diisi)" : [...names[k]].join(" / "); });
+    const keys = Array.from(new Set([...Object.keys(stockBy), ...Object.keys(need)]));
+    const o3 = baseOpts();
+    o3.indexAxis = "y"; o3.scales.y.grid.display = false;
+    o3.plugins.tooltip.callbacks = { label: c => ` ${c.dataset.label}: ${fmtInt(c.raw)}` };
+    mountChart("chStock", { type: "bar", data: { labels: keys.map(k => label[k]), datasets: [
+      { label: "Stock (Qty)", data: keys.map(k => stockBy[k] ?? 0), backgroundColor: s1, borderRadius: 4, maxBarThickness: 14 },
+      { label: "Kebutuhan pending", data: keys.map(k => need[k] || 0), backgroundColor: s2, borderRadius: 4, maxBarThickness: 14 }
+    ] }, options: o3 });
+  }
+}
+
+/* =====================================================================
+   7. HALAMAN: TRACKER IMPLEMENTASI
+   ===================================================================== */
+function trackerPanel(key, title, hint) {
+  if (!ok(key)) return `<div class="card"><div class="card-head"><h3>${title}</h3></div>${srcError(key)}</div>`;
+  const all = rowsOf(key), st = state.tr[key];
+  const counts = {};
+  all.forEach(r => { const s = r.status || ""; counts[s] = (counts[s] || 0) + 1; });
+  const q = norm(st.q);
+  let rows = all.filter(r => (!st.status || (st.status === "__empty" ? !r.status : r.status === st.status)) &&
+    (!q || [r.rcCode, r.name, r.readerType, r.tier, r.category, r.am, r.status].some(v => norm(v).includes(q))));
+  const total = rows.length, size = 15;
+  const pages = Math.max(1, Math.ceil(total / size)); if (st.page > pages) st.page = pages;
+  rows = rows.slice((st.page - 1) * size, st.page * size);
+  const live = counts["Live"] || Object.entries(counts).filter(([s]) => isLive(s)).reduce((a, e) => a + e[1], 0);
+  const gid = CONFIG.SOURCES[key].gid;
+  const chip = (val, lbl, n) => `<button type="button" class="chip-btn" data-trs="${key}" data-val="${esc(val)}" aria-pressed="${st.status === val}">${lbl} <b class="num">${fmtInt(n)}</b></button>`;
+  return `<div class="card">
+    <div class="card-head"><div><h3>${title}</h3><div class="hint">${hint}</div></div>
+      <a class="btn sm" href="${editUrl(gid)}" target="_blank" rel="noopener">${svg("ext", 13)} Buka sheet</a></div>
+    <div class="toolbar" style="padding-bottom:8px">
+      <div class="chips">${chip("", "Semua", all.length)}${Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([s, n]) => chip(s || "__empty", s ? esc(s) : "Belum ada status", n)).join("")}</div>
+    </div>
+    <div class="toolbar" style="padding-top:0">
+      <label class="search"><span class="sr-only">Cari</span>${svg("search", 15)}<input class="input" data-trq="${key}" value="${esc(st.q)}" placeholder="Cari kode, lokasi, tipe reader…"></label>
+      <span class="spacer"></span><span class="count">Live: <b class="num">${fmtInt(live)}</b> dari ${fmtInt(all.length)} lokasi plan</span>
+    </div>
+    ${total ? `<div class="table-wrap short"><table class="data">
+      <thead><tr><th>Lokasi</th><th>Tipe Reader</th><th class="r">Gate In</th><th class="r">Gate Out</th><th>Tier</th><th>Imp Date</th><th>Status</th><th>Summary</th><th><span class="sr-only">Sheet</span></th></tr></thead>
+      <tbody>${rows.map(r => `<tr>
+        <td class="loc" title="${esc(r.name)}">${cell(r.name)}<span class="sub">${esc(r.rcCode || "—")}</span></td>
+        <td>${cell(r.readerType)}</td><td class="r num">${cell(r.gateIn)}</td><td class="r num">${cell(r.gateOut)}</td>
+        <td>${cell(r.tier)}</td><td class="num">${cell(r.targetDate)}</td><td>${badge(r.status)}</td>
+        <td>${isLive(r.status) ? `<span class="badge b-good">Sinkron ✓</span>` : `<span class="empty-val">—</span>`}</td>
+        <td><a class="row-link" href="${editUrl(gid, r._row)}" target="_blank" rel="noopener" title="Buka baris ${r._row} di sheet" aria-label="Buka baris ${r._row} di sheet">${svg("ext", 14)}</a></td></tr>`).join("")}</tbody></table></div>
+      ${pager("tr:" + key, st.page, total, size)}`
+    : stateBox("", "Tidak ada baris yang cocok", "Ubah kata kunci atau pilihan status.")}
+  </div>`;
+}
+function viewTracker() {
+  return `<div class="section-head"><div><h2>Tracker Implementasi</h2>
+    <p>Lokasi berstatus <b>Live</b> di plan berikut otomatis dipakai sebagai tipe reader terbaru di Summary / Ringkasan Eksekutif (kolom "Summary" = Sinkron).</p></div></div>
+  <div class="grid g-2">
+    ${trackerPanel("readerIn", "Reader In", `Sheet: ${esc(CONFIG.SOURCES.readerIn.sheet)}`)}
+    ${trackerPanel("readerOut", "Reader Out", `Sheet: ${esc(CONFIG.SOURCES.readerOut.sheet)}`)}
+  </div>`;
+}
+
+/* =====================================================================
+   8. HALAMAN: STOK & PENGADAAN
+   ===================================================================== */
+function viewStock() {
+  if (!ok("stock")) return srcError("stock");
+  const S = rowsOf("stock");
+  const { need, names } = needByKey();
+  const stockKeys = new Set(S.map(r => readerKey(r.readerType)));
+  const totalQty = S.reduce((a, r) => a + (parseNum(r.qty) || 0), 0);
+  const totalOtw = S.reduce((a, r) => a + (parseNum(r.otw) || 0), 0);
+  const rows = S.map(r => {
+    const qty = parseNum(r.qty), k = readerKey(r.readerType), n = need[k] || 0;
+    const low = qty == null ? null : (qty < CONFIG.STOCK_BUFFER_MIN || qty < n);
+    return { r, qty, n, low };
+  });
+  const lowCount = rows.filter(x => x.low).length;
+  const unmatched = Object.keys(need).filter(k => !stockKeys.has(k));
+  const needTotal = Object.values(need).reduce((a, b) => a + b, 0);
+  const q = norm(state.stockQ);
+  const shown = rows.filter(x => !q || [x.r.readerType, x.r.ket, x.r.remarks].some(v => norm(v).includes(q)));
+  const notes = state.src.stock.notes || [];
+  return `<div class="section-head"><div><h2>Stok & Pengadaan</h2><p>Sumber: sheet "${esc(CONFIG.SOURCES.stock.sheet)}" · kebutuhan dari plan ${CONFIG.NEED_SOURCES.map(k => CONFIG.SOURCES[k].label).join(" + ")}</p></div>
+    <a class="btn sm" href="${editUrl(CONFIG.SOURCES.stock.gid)}" target="_blank" rel="noopener">${svg("ext", 13)} Buka sheet</a></div>
+  <div class="section grid g-kpi">
+    ${kpi({ label: "Total Stock (Qty)", value: fmtInt(totalQty), sub: `${S.length} tipe reader` })}
+    ${kpi({ label: "Stock OTW", value: fmtInt(totalOtw), sub: "Unit dalam perjalanan (nilai numerik saja)" })}
+    ${kpi({ label: "Kebutuhan Pending", value: fmtInt(needTotal), sub: "Lokasi plan belum Live (1 baris = 1 lokasi)" })}
+    ${kpi({ label: "Buffer Rendah", value: fmtInt(lowCount), sub: `Tipe dengan stok < ${CONFIG.STOCK_BUFFER_MIN} atau < kebutuhan` })}
+  </div>
+  <div class="card section">
+    <div class="toolbar"><label class="search"><span class="sr-only">Cari</span>${svg("search", 15)}<input class="input" id="stockQ" value="${esc(state.stockQ)}" placeholder="Cari tipe reader / keterangan…"></label><span class="spacer"></span><span class="count">${shown.length} tipe</span></div>
+    ${shown.length ? `<div class="table-wrap"><table class="data">
+      <thead><tr><th>Tipe Reader</th><th class="r">Stock (Qty)</th><th class="r">Stock OTW</th><th class="r">Kebutuhan Pending</th><th>Status Buffer</th><th>Ket</th><th>Remarks</th></tr></thead>
+      <tbody>${shown.map(({ r, qty, n, low }) => `<tr>
+        <td><b style="font-weight:600">${cell(r.readerType)}</b></td>
+        <td class="r num">${qty == null ? cell(r.qty) : fmtInt(qty)}</td>
+        <td class="r num">${cell(r.otw)}</td>
+        <td class="r num">${fmtInt(n)}</td>
+        <td>${low == null ? `<span class="badge b-neutral">Stok tidak terisi</span>` : low ? `<span class="badge b-bad">Buffer rendah</span>` : `<span class="badge b-good">Aman</span>`}</td>
+        <td class="wrap-text">${cell(r.ket)}</td><td class="wrap-text">${cell(r.remarks)}</td></tr>`).join("")}</tbody></table></div>`
+    : stateBox("", "Tidak ada tipe reader yang cocok", "Ubah kata kunci pencarian.")}
+  </div>
+  ${unmatched.length ? `<div class="banner info"><span class="b-ico">${svg("alert", 18)}</span><div><b>Kebutuhan tanpa padanan di Reader Stock</b>
+    Tipe berikut ada di plan tetapi tidak cocok dengan nama di sheet stok, sehingga tidak dihitung pada kolom Kebutuhan di atas:
+    <ul>${unmatched.map(k => `<li>${k === "__blank" ? "Tipe reader belum diisi" : esc([...names[k]].join(" / "))}: <b class="num">${fmtInt(need[k])}</b> lokasi</li>`).join("")}</ul>
+    <div class="note">Padanan nama diatur di <code>CONFIG.READER_ALIASES</code>.</div></div></div>` : ""}
+  <p class="note">Status <b>Buffer rendah</b> muncul bila Stock (Qty) di bawah ${CONFIG.STOCK_BUFFER_MIN} unit atau di bawah jumlah kebutuhan pending. Kolom Allocated &amp; Defective pada versi lama dihapus karena kolom tersebut tidak ada di sheet.
+  ${notes.map(n => `<br>Catatan sheet (baris ${n._row}): ${esc(n._raw.filter(v => String(v).trim()).join(" — "))}`).join("")}</p>`;
+}
+
+/* =====================================================================
+   9. HALAMAN: DATA EXPLORER
+   ===================================================================== */
+function explorerColumns(src) {
+  const schema = SCHEMA[src], s = state.src[src];
+  if (state.ex.rawCols && s) {
+    return s.header.map((h, i) => ({ key: "_c" + i, label: h || `(Kolom ${i + 1})`, get: r => r._raw[i] == null ? "" : String(r._raw[i]).trim() })).filter((c, i) => s.header[i] || s.rows.some(r => String(r._raw[i] || "").trim()));
+  }
+  let cols = Object.entries(schema.fields).filter(([f]) => s && s.colMap[f] >= 0).map(([f, spec]) => ({ key: f, label: spec.label, get: r => r[f], type: spec.type }));
+  if (src === "summary") {
+    cols = cols.filter(c => !["statusDki", "statusLokasi"].includes(c.key));
+    cols.splice(4, 0, { key: "_status", label: statusLabel(), get: r => statusOf(r), badge: true });
+    cols.push({ key: "effectiveReader", label: "Reader Efektif", get: r => r.effectiveReader },
+              { key: "readerUpdated", label: "Update dari Plan", get: r => r.readerUpdated ? r.readerUpdatedFrom : "" });
+    const other = state.basis === "lokasi" ? "statusDki" : "statusLokasi";
+    cols.push({ key: other, label: SCHEMA.summary.fields[other].label, get: r => r[other], badge: true });
+  } else {
+    cols.forEach(c => { if (c.key === "status") c.badge = true; });
+  }
+  return cols;
+}
+function sortVal(c, r) {
+  const v = c.get(r);
+  if (v === "" || v == null) return null;
+  if (c.type === "num") { const n = parseNum(v); return n == null ? String(v).toLowerCase() : n; }
+  if (c.type === "date") { const d = parseDate(v); return d == null ? String(v).toLowerCase() : d; }
+  const n = /^-?[\d.,]+$/.test(v) ? parseNum(v) : null;
+  return n != null ? n : String(v).toLowerCase();
+}
+function explorerRows() {
+  const ex = state.ex, src = ex.source;
+  const cols = explorerColumns(src);
+  const q = norm(ex.q);
+  let rows = rowsOf(src).filter(r => {
+    if (q && !r._raw.some(v => norm(v).includes(q)) && !(r.effectiveReader && norm(r.effectiveReader).includes(q))) return false;
+    if (src === "summary") {
+      const f = ex.filter;
+      if (f.status === "__attention") { if (!isAttention(statusOf(r))) return false; }
+      else if (f.status === "__empty") { if (statusOf(r)) return false; }
+      else if (f.status && norm(statusOf(r)) !== norm(f.status)) return false;
+      if (f.batch && (f.batch === "__empty" ? r.batch : r.batch !== f.batch)) return false;
+      if (f.reader && (f.reader === "__empty" ? r.effectiveReader : r.effectiveReader !== f.reader)) return false;
+    }
+    return true;
+  });
+  if (ex.sort) {
+    const c = cols.find(c => c.key === ex.sort.key);
+    if (c) {
+      const dir = ex.sort.dir === "asc" ? 1 : -1;
+      rows = rows.map(r => [sortVal(c, r), r]).sort((a, b) => {
+        if (a[0] == null) return b[0] == null ? 0 : 1;  // kosong selalu di bawah
+        if (b[0] == null) return -1;
+        if (typeof a[0] === typeof b[0]) return (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0) * dir;
+        return (typeof a[0] === "number" ? -1 : 1) * dir;
+      }).map(x => x[1]);
+    }
+  }
+  return { rows, cols };
+}
+function viewExplore() {
+  const ex = state.ex, src = ex.source;
+  const srcTabs = Object.entries(CONFIG.SOURCES).map(([k, s]) => `<button type="button" data-exsrc="${k}" aria-pressed="${src === k}">${s.label} <span class="muted num">${ok(k) ? fmtInt(rowsOf(k).length) : "!"}</span></button>`).join("");
+  let body;
+  if (!ok(src)) body = srcError(src);
+  else {
+    const { rows, cols } = explorerRows();
+    const total = rows.length, size = CONFIG.PAGE_SIZE;
+    const pages = Math.max(1, Math.ceil(total / size)); if (ex.page > pages) ex.page = pages;
+    const pageRows = rows.slice((ex.page - 1) * size, ex.page * size);
+    const gid = CONFIG.SOURCES[src].gid;
+    let filters = "", active = "";
+    if (src === "summary") {
+      const S = rowsOf("summary");
+      const uniq = get => Array.from(new Set(S.map(get).filter(Boolean))).sort((a, b) => a.localeCompare(b, "id", { numeric: true }));
+      const opt = (val, lbl, cur) => `<option value="${esc(val)}" ${cur === val ? "selected" : ""}>${esc(lbl)}</option>`;
+      const f = ex.filter;
+      filters = `
+        <select class="select" data-exf="status" aria-label="Filter ${statusLabel()}">${opt("", "Semua " + statusLabel(), f.status || "")}${opt("__attention", "⚑ Perlu perhatian", f.status)}${uniq(statusOf).map(s => opt(s, s, f.status)).join("")}${opt("__empty", "(Status kosong)", f.status)}</select>
+        <select class="select" data-exf="batch" aria-label="Filter batch">${opt("", "Semua Batch", f.batch || "")}${uniq(r => r.batch).map(s => opt(s, s, f.batch)).join("")}${opt("__empty", "(Tanpa batch)", f.batch)}</select>
+        <select class="select" data-exf="reader" aria-label="Filter tipe reader">${opt("", "Semua Tipe Reader", f.reader || "")}${uniq(r => r.effectiveReader).map(s => opt(s, s, f.reader)).join("")}${opt("__empty", "(Belum ada data reader)", f.reader)}</select>`;
+      const lbl = { status: statusLabel(), batch: "Batch", reader: "Tipe Reader" };
+      const val = (k, v) => v === "__attention" ? "Perlu perhatian" : v === "__empty" ? "(Kosong)" : v;
+      const act = Object.entries(f).filter(([k, v]) => v);
+      if (act.length) active = `<div class="active-filters"><span class="count">Filter aktif:</span>${act.map(([k, v]) => `<span class="af">${lbl[k]}: <b>${esc(val(k, v))}</b><button type="button" data-rmf="${k}" aria-label="Hapus filter ${lbl[k]}">×</button></span>`).join("")}<button class="btn sm ghost" data-act="reset-filter">Reset semua</button></div>`;
+    }
+    const sortAttr = c => ex.sort && ex.sort.key === c.key ? (ex.sort.dir === "asc" ? "ascending" : "descending") : "none";
+    body = `
+      <div class="toolbar">
+        <label class="search"><span class="sr-only">Cari</span>${svg("search", 15)}<input class="input" id="exQ" value="${esc(ex.q)}" placeholder="Cari lokasi, kode, tipe reader…"></label>
+        ${filters}
+        <span class="spacer"></span>
+        <label class="check"><input type="checkbox" id="rawCols" ${ex.rawCols ? "checked" : ""}> Semua kolom sheet</label>
+        <a class="btn sm" href="${editUrl(gid)}" target="_blank" rel="noopener">${svg("ext", 13)} Buka sheet</a>
+      </div>
+      ${active}
+      ${total ? `<div class="table-wrap"><table class="data">
+        <thead><tr>${cols.map(c => `<th class="sortable${c.type === "num" ? " r" : ""}" data-sort="${esc(c.key)}" aria-sort="${sortAttr(c)}" tabindex="0">${esc(c.label)}<span class="arr">${sortAttr(c) === "ascending" ? "▲" : sortAttr(c) === "descending" ? "▼" : "↕"}</span></th>`).join("")}<th><span class="sr-only">Sheet</span></th></tr></thead>
+        <tbody>${pageRows.map(r => `<tr>${cols.map(c => { const v = c.get(r); return `<td class="${c.type === "num" ? "r num" : ""}${c.key === "name" ? " loc" : ""}" ${c.key === "name" ? `title="${esc(v)}"` : ""}>${c.badge ? badge(v) : cell(v)}</td>`; }).join("")}
+          <td><a class="row-link" href="${editUrl(gid, r._row)}" target="_blank" rel="noopener" title="Buka baris ${r._row} di sheet" aria-label="Buka baris ${r._row} di sheet">${svg("ext", 14)}</a></td></tr>`).join("")}</tbody></table></div>
+        ${pager("ex", ex.page, total, size)}`
+      : stateBox("", "Tidak ada data yang cocok", `Tidak ada baris yang memenuhi pencarian/filter saat ini (${fmtInt(rowsOf(src).length)} baris tersedia).`, (ex.q || Object.values(ex.filter).some(Boolean)) ? `<button class="btn sm" data-act="reset-all">Reset pencarian & filter</button>` : "")}`;
+  }
+  return `<div class="section-head"><div><h2>Data Explorer</h2><p>Data mentah per sheet. Klik judul kolom untuk mengurutkan; ikon ↗ membuka baris aslinya di Google Sheets.</p></div>
+    <div class="seg" role="group" aria-label="Pilih sheet">${srcTabs}</div></div>
+    <div class="card">${body}</div>`;
+}
+
+/* =====================================================================
+   10. HALAMAN: KUALITAS DATA (diagnostik)
+   ===================================================================== */
+function viewDiag() {
+  const cards = Object.entries(CONFIG.SOURCES).map(([k, s]) => {
+    const x = state.src[k];
+    if (!x) return `<div class="card card-pad"><h3 style="margin:0 0 6px;font-size:14px">${esc(s.sheet)}</h3><span class="muted">Belum dimuat</span></div>`;
+    if (!x.ok) return `<div class="card"><div class="card-head"><h3>${esc(s.sheet)}</h3><span class="pill err"><span class="dot"></span>Gagal</span></div>${srcError(k)}</div>`;
+    const m = x.meta;
+    const fields = Object.entries(SCHEMA[k].fields).map(([f, spec]) => {
+      const i = x.colMap[f];
+      return `<tr><td>${esc(spec.label)}</td><td>${i >= 0 ? `<code>${esc(x.header[i] || "(tanpa judul)")}</code> <span class="muted">kolom ${colName(i)}</span>` : `<span class="badge ${spec.optional ? "b-neutral" : "b-warn"}">Tidak ada di sheet</span>`}</td></tr>`;
+    }).join("");
+    return `<div class="card">
+      <div class="card-head"><div><h3>${esc(s.sheet)}</h3><div class="hint">gid ${esc(s.gid)}</div></div>
+        <span class="pill ${m.method === "export" ? "ok" : "warn"}"><span class="dot"></span>${m.method === "export" ? "CSV export (lengkap)" : "gviz (fallback)"}</span></div>
+      <div class="card-body">
+        <dl class="kv">
+          <dt>Baris judul</dt><dd>baris ${x.headerRow}</dd>
+          <dt>Baris data dipakai</dt><dd class="num"><b>${fmtInt(x.stats.kept)}</b></dd>
+          <dt>Diabaikan</dt><dd class="num">${fmtInt(x.stats.blank)} baris kosong · ${fmtInt(x.stats.noKey)} baris tanpa ${SCHEMA[k].requireAny.map(f => SCHEMA[k].fields[f].label).join("/")}${x.notes && x.notes.length ? ` · ${x.notes.length} baris catatan` : ""}</dd>
+          <dt>Sel error formula</dt><dd class="num">${x.stats.errCells ? `<span class="cell-err">${fmtInt(x.stats.errCells)} sel (#N/A, #REF!, #VALUE!)</span>` : "0"}</dd>
+          ${m.attempts && m.attempts.length ? `<dt>Percobaan gagal</dt><dd>${m.attempts.map(a => esc(a.method + ": " + a.error)).join("<br>")}</dd>` : ""}
+        </dl>
+        <table class="data" style="margin-top:12px"><thead><tr><th>Field dashboard</th><th>Kolom sheet</th></tr></thead><tbody>${fields}</tbody></table>
+      </div></div>`;
+  }).join("");
+  return `<div class="section-head"><div><h2>Kualitas Data</h2><p>Transparansi proses pengambilan & pemetaan data. Gunakan halaman ini bila angka terlihat janggal.</p></div></div>
+    <div class="grid g-2">${cards}</div>
+    <p class="note">Metode utama: <code>/export?format=csv</code> (seluruh baris, nilai sesuai tampilan sheet, tidak terpengaruh filter). Fallback: <code>/gviz/tq</code> — dapat mengembalikan subset baris bila sheet sedang difilter dan dapat mengosongkan sel yang tipenya berbeda dengan mayoritas kolom.</p>`;
+}
+const colName = i => { let s = ""; i++; while (i) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+
+/* =====================================================================
+   11. RENDER & EVENT
+   ===================================================================== */
+function skeleton() {
+  const k = `<div class="card kpi"><div class="skel" style="height:12px;width:40%"></div><div class="skel" style="height:30px;width:60%;margin-top:6px"></div><div class="skel" style="height:10px;width:70%;margin-top:6px"></div></div>`;
+  return `<div class="section grid g-kpi">${k + k + k + k}</div><div class="section grid g-3-1"><div class="card card-pad"><div class="skel" style="height:280px"></div></div><div class="card card-pad"><div class="skel" style="height:280px"></div></div></div>
+  <p class="muted" style="text-align:center">Memuat data dari Google Sheets…</p>`;
+}
+function banners() {
+  const failed = Object.keys(CONFIG.SOURCES).filter(k => state.src[k] && !state.src[k].ok);
+  const gviz = Object.keys(CONFIG.SOURCES).filter(k => ok(k) && state.src[k].meta.method === "gviz");
+  let h = "";
+  const stale = Object.keys(CONFIG.SOURCES).filter(k => ok(k) && state.src[k].staleError);
+  if (stale.length) h += `<div class="banner warn"><span class="b-ico">${svg("alert", 18)}</span><div><b>Refresh terakhir gagal — menampilkan data sebelumnya</b>${stale.map(k => `${esc(CONFIG.SOURCES[k].sheet)}: ${esc(state.src[k].staleError)}`).join("<br>")}</div></div>`;
+  if (failed.length) h += `<div class="banner err"><span class="b-ico">${svg("alert", 18)}</span><div><b>${failed.length === Object.keys(CONFIG.SOURCES).length ? "Data gagal dimuat" : "Sebagian data gagal dimuat"}</b>
+    ${failed.map(k => `${esc(CONFIG.SOURCES[k].sheet)}: ${esc(state.src[k].error)}`).join("<br>")}
+    <div class="note">Periksa: (1) sheet dibagikan "Anyone with the link – Viewer", (2) gid di CONFIG masih sesuai, (3) koneksi internet / ekstensi pemblokir. Bagian lain tetap ditampilkan.</div></div></div>`;
+  if (gviz.length) h += `<div class="banner warn"><span class="b-ico">${svg("alert", 18)}</span><div><b>Data mungkin tidak lengkap</b>
+    Sheet ${gviz.map(k => esc(CONFIG.SOURCES[k].sheet)).join(", ")} dimuat lewat endpoint cadangan (gviz) karena export CSV gagal. Endpoint ini mengikuti filter yang sedang aktif di sheet, sehingga jumlah baris bisa lebih sedikit.</div></div>`;
+  return h;
+}
+let renderToken = 0;
+function render() {
+  const main = $("#main");
+  destroyCharts();
+  $("#tabs").innerHTML = TABS.map(([k, l]) => `<button type="button" role="tab" class="tab" data-tab="${k}" aria-selected="${state.tab === k}">${svg(k, 15)}${l}</button>`).join("");
+  if (state.firstLoad && state.loading) { main.innerHTML = skeleton(); return; }
+  const v = { overview: viewOverview, tracker: viewTracker, stock: viewStock, explore: viewExplore, diag: viewDiag }[state.tab] || viewOverview;
+  let html;
+  try { html = v(); } catch (e) { console.error(e); html = stateBox("err", "Terjadi kesalahan saat menampilkan halaman", esc(e.message)); }
+  main.innerHTML = banners() + html;
+  if (state.tab === "overview" && ok("summary")) { const t = ++renderToken; requestAnimationFrame(() => { if (t === renderToken) mountOverviewCharts(); }); }
+}
+function renderHeader() {
+  const pill = $("#statusPill");
+  const keys = Object.keys(CONFIG.SOURCES);
+  const failed = keys.filter(k => state.src[k] && !state.src[k].ok).length;
+  const gviz = keys.filter(k => ok(k) && state.src[k].meta.method === "gviz").length;
+  let cls = "ok", txt = "Data terhubung";
+  if (state.loading) { cls = "load"; txt = state.firstLoad ? "Memuat" : "Memperbarui"; }
+  else if (failed === keys.length) { cls = "err"; txt = "Gagal memuat"; }
+  else if (failed || gviz) { cls = "warn"; txt = failed ? `${failed} sumber gagal` : "Data parsial"; }
+  pill.className = "pill " + cls;
+  pill.innerHTML = `<span class="dot"></span><span>${txt}</span>`;
+  $("#updatedAt").textContent = state.updatedAt ? "Update terakhir: " + state.updatedAt.toLocaleString("id-ID", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : (state.loading ? "Memuat data…" : "Belum ada data");
+  const btn = $("#refreshBtn");
+  btn.disabled = state.loading;
+  $("#refreshIco").classList.toggle("spin", state.loading);
+  btn.querySelector("span").textContent = state.loading ? "Memuat…" : "Refresh";
+}
+
+async function load() {
+  if (state.loading) return;
+  state.loading = true; renderHeader(); if (state.firstLoad) render();
+  const keys = Object.keys(CONFIG.SOURCES);
+  const results = await Promise.allSettled(keys.map(fetchSource));
+  keys.forEach((k, i) => {
+    const res = results[i];
+    if (res.status === "rejected") {
+      // Saat refresh gagal, data lama tetap dipakai agar dashboard tidak kosong
+      if (state.src[k] && state.src[k].ok) { state.src[k].staleError = res.reason.message; return; }
+      state.src[k] = { ok: false, error: res.reason.message };
+      return;
+    }
+    try {
+      const p = parseSource(k, res.value.text);
+      state.src[k] = { ok: true, ...p, meta: { method: res.value.method, url: res.value.url, attempts: res.value.attempts } };
+    } catch (e) {
+      console.error(e);
+      state.src[k] = { ok: false, error: "Gagal membaca struktur sheet: " + e.message };
+    }
+  });
+  if (ok("summary")) mergeEffectiveReader();
+  state.loading = false; state.firstLoad = false;
+  if (keys.some(ok)) state.updatedAt = new Date();
+  renderHeader(); render();
+}
+
+function goExplore(filter) {
+  state.ex = { ...state.ex, source: "summary", filter, page: 1, q: "", sort: null };
+  setTab("explore");
+}
+function setTab(t) { state.tab = t; store.set("tab", t); render(); window.scrollTo({ top: 0 }); }
+
+// Event delegation
+document.addEventListener("click", e => {
+  const t = e.target.closest("[data-tab],[data-act],[data-basis],[data-status],[data-exsrc],[data-sort],[data-pg],[data-rmf],[data-trs]");
+  if (!t) return;
+  if (t.dataset.tab) return setTab(t.dataset.tab);
+  if (t.dataset.basis) { state.basis = t.dataset.basis; store.set("basis", state.basis); return render(); }
+  if (t.dataset.status) { const s = t.dataset.status; return goExplore({ status: s }); }
+  if (t.dataset.exsrc) { state.ex = { ...state.ex, source: t.dataset.exsrc, page: 1, sort: null }; return render(); }
+  if (t.dataset.sort) {
+    const k = t.dataset.sort, s = state.ex.sort;
+    state.ex.sort = !s || s.key !== k ? { key: k, dir: "asc" } : s.dir === "asc" ? { key: k, dir: "desc" } : null;
+    state.ex.page = 1; return render();
+  }
+  if (t.dataset.pg) {
+    const to = +t.dataset.to;
+    if (t.dataset.pg === "ex") state.ex.page = to; else state.tr[t.dataset.pg.split(":")[1]].page = to;
+    render();
+    const wrap = document.querySelector(t.dataset.pg === "ex" ? ".table-wrap" : null); if (wrap) wrap.scrollTop = 0;
+    return;
+  }
+  if (t.dataset.rmf) { delete state.ex.filter[t.dataset.rmf]; state.ex.page = 1; return render(); }
+  if (t.dataset.trs) { const st = state.tr[t.dataset.trs]; st.status = t.dataset.val; st.page = 1; return render(); }
+  switch (t.dataset.act) {
+    case "refresh": return load();
+    case "kpi-live": { const v = rowsOf("summary").map(statusOf).find(isLive) || "Live"; return goExplore({ status: v }); }
+    case "kpi-attn": return goExplore({ status: "__attention" });
+    case "kpi-all": return goExplore({});
+    case "reset-filter": state.ex.filter = {}; state.ex.page = 1; return render();
+    case "reset-all": state.ex.filter = {}; state.ex.q = ""; state.ex.page = 1; return render();
+  }
+});
+document.addEventListener("keydown", e => {
+  const th = e.target.closest && e.target.closest("th[data-sort]");
+  if (th && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); th.click(); }
+});
+document.addEventListener("change", e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.exf) { state.ex.filter[t.dataset.exf] = t.value || undefined; state.ex.page = 1; render(); }
+  if (t.id === "rawCols") { state.ex.rawCols = t.checked; state.ex.sort = null; render(); }
+});
+// Input pencarian: debounce & kembalikan fokus setelah render
+let qTimer;
+document.addEventListener("input", e => {
+  const t = e.target;
+  let apply = null, sel = null;
+  if (t.id === "exQ") { apply = () => { state.ex.q = t.value; state.ex.page = 1; }; sel = "#exQ"; }
+  else if (t.id === "stockQ") { apply = () => { state.stockQ = t.value; }; sel = "#stockQ"; }
+  else if (t.dataset && t.dataset.trq) { const k = t.dataset.trq; apply = () => { state.tr[k].q = t.value; state.tr[k].page = 1; }; sel = `[data-trq="${k}"]`; }
+  if (!apply) return;
+  clearTimeout(qTimer);
+  qTimer = setTimeout(() => {
+    const pos = t.selectionStart; apply(); render();
+    const el = $(sel); if (el) { el.focus(); try { el.setSelectionRange(pos, pos); } catch (_) {} }
+  }, 220);
+});
+
+// Tema
+function applyTheme(t) { if (t) document.documentElement.setAttribute("data-theme", t); else document.documentElement.removeAttribute("data-theme"); }
+applyTheme(store.get("theme", ""));
+$("#themeBtn").addEventListener("click", () => {
+  const dark = document.documentElement.getAttribute("data-theme") === "dark" ||
+    (!document.documentElement.getAttribute("data-theme") && matchMedia("(prefers-color-scheme: dark)").matches);
+  const next = dark ? "light" : "dark";
+  applyTheme(next); store.set("theme", next); render();
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (!store.get("theme", "")) render(); });
+$("#refreshBtn").addEventListener("click", load);
+$("#srcLink").href = editUrl(CONFIG.SOURCES.summary.gid);
+$("#footer").innerHTML = `Data dibaca langsung dari Google Sheets setiap kali halaman dibuka dan diperbarui otomatis tiap ${CONFIG.AUTO_REFRESH_MS / 60000} menit. Dashboard ini hanya membaca data (read-only).`;
+
+// Mulai
+if (typeof Papa === "undefined") {
+  $("#main").innerHTML = stateBox("err", "Library gagal dimuat", "PapaParse tidak dapat dimuat dari CDN. Periksa koneksi internet atau pemblokir konten, lalu muat ulang halaman.", `<button class="btn sm" onclick="location.reload()">Muat ulang</button>`);
+  state.loading = false; renderHeader();
+} else {
+  if (!TABS.some(t => t[0] === state.tab)) state.tab = "overview";
+  load();
+  setInterval(() => { if (!document.hidden) load(); }, CONFIG.AUTO_REFRESH_MS);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && state.updatedAt && Date.now() - state.updatedAt > CONFIG.AUTO_REFRESH_MS) load(); });
+}
+</script>
+</body>
+</html>
